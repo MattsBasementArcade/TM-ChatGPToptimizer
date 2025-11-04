@@ -74,12 +74,16 @@
   Example key: `tm_chatgpt_opt_arch_v062` (subject to change).
 - **Chat content is *not* stored** by the script.  
 - **No network calls** are made by the script.
+- Refreshing the page restores the full conversation from the ChatGPT servers.
 
 ## Tips
 
 - For huge threads, use **Hard Purge** every so often.
 - Use **Keep last exchange** when coding interactively to minimize DOM size.
 - If you switch between many chats quickly and selection boxes disappear, toggle **Selection mode** off/on or wait a second for the observer to re-attach them (or use the build ≥0.5.2 which handles this automatically).
+- If memory is tight: **Hard Purge** → (optional) **Expand All** → **Soft Hide Now** to re-normalize.
+- DevTools “Memory” or heap snapshots can hold references and delay GC; close those panels if you’re testing memory drops.
+- Long outputs: enable **Collapse long code** to reduce layout/paint overhead.
 
 ## Privacy & permissions
 

@@ -3,6 +3,19 @@
 All notable changes to **ChatGPT Optimizer + Archiver** will be documented here.  
 Versioning: SemVer (feature ⇒ minor, fix ⇒ patch, breaking ⇒ major).
 
+## 0.6.5
+- Change: **Hard Purge** now behaves like “Soft Hide but destructive”: removes the oldest nodes (both real turns and placeholders) so **only the last N** remain in the DOM. Ignores sticky/selection. Refresh restores from server.
+- Improvement: After purge, if Auto is ON, re-runs slimming to match your keep-last setting.
+- Minor: Extra safety around re-observe & stats after destructive actions.
+
+## 0.6.4
+- Fix: Markdown table export bug (missing `))`) that could prevent the script from loading.
+- Feature: Theme selector (**Auto / Light / Dark**) with scoped light-theme styles for panel, placeholders, and overlays.
+- Stability: Hydration-safe init + periodic panel keep-alive in case the SPA rerenders.
+
+## 0.6.3
+- Attempted theme work; regressions remained (some installs failed to load). **Superseded by 0.6.4.**
+
 ## [0.6.2] - 2025-11-03
 ### Fixed
 - **Soft Hide Now** now ignores “sticky” turns (ones you expanded manually). Works on first run and after you’ve expanded items.

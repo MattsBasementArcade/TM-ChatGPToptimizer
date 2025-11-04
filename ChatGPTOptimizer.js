@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT Optimizer + Archiver (keep last N, select+export, draggable panel)
 // @namespace    https://github.com/MattsBasementArcade/TM-ChatGPToptimizer
-// @version      0.6.2
+// @version      0.6.5
 // @description  Keep chats snappy for long code, plus select and export chat turns or code blocks. Draggable/minimizable control panel.
 // @author       Matt's Basement Arcade
 // @match        https://chat.openai.com/*
@@ -19,7 +19,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '0.6.2';
+  const VERSION = '0.6.5';
 
   // ------------------------------------------------------------
   // Settings (UI prefs only; no chat content is stored)
@@ -37,6 +37,7 @@
     panelY: 12,
     panelMin: false,
     colorizePlaceholders: true,
+    theme: 'auto', // 'auto' | 'light' | 'dark'
   };
   let st = load();
   function load() { try { return { ...defaults, ...(JSON.parse(localStorage.getItem(LS) || '{}')) }; } catch { return { ...defaults }; } }
@@ -57,18 +58,17 @@
     return role === 'assistant' ? 'assistant' : 'user';
   }
 
-  // Panel keep-alive (in case React remounts the page)
+  // Panel keep-alive (handles SPA re-hydration nuking the panel)
   let uiKeepAliveTimer = null;
   function startUIKeepAlive(){
     if (uiKeepAliveTimer) return;
     uiKeepAliveTimer = setInterval(() => {
       if (!document.getElementById('tm-panel')) {
-        try { ensureStyles(); buildUI(); applyReduceMotion(st.reduceMotion); updateStats(); } catch {}
+        try { ensureStyles(); buildUI(); applyReduceMotion(st.reduceMotion); applyTheme(st.theme); updateStats(); } catch {}
       }
     }, 1000);
   }
 
-  // Wait for hydration
   function afterHydration(cb, timeoutMs = 8000){
     const t0 = Date.now();
     (function tick(){
@@ -110,6 +110,13 @@
     return turns.length ? turns : $$('.text-base', root);
   }
 
+  // All turn-like nodes including our placeholders (for Hard Purge)
+  function getAllTurnNodes() {
+    const root = findMessageContainer();
+    if (!root) return [];
+    return $$('.tm-ph, article[data-message-id], article[data-testid^="conversation-turn"], article', root);
+  }
+
   // -------- placeholders (selection-aware & colored) --------
   function makePlaceholder(node, idx, total){
     const role = detectRole(node);
@@ -129,7 +136,8 @@
       <div class="tm-ph-inner">
         <span class="tm-ph-text">${previewText ? previewText : `Collapsed turn (${idx}/${total}) — click to expand`}</span>
         <div class="tm-badges">
-          <span class="tm-badge role-${role}">${role === 'assistant' ? 'Assistant' : 'User'}</span>
+          <span class="tm-badge role-user" style="display:${role==='user'?'':'none'}">User</span>
+          <span class="tm-badge role-assistant" style="display:${role==='assistant'?'':'none'}">Assistant</span>
           ${codeCount ? `<span class="tm-badge code">${codeCount} code</span>` : ''}
         </div>
         <label class="tm-ph-sel">
@@ -177,7 +185,7 @@
     ph.replaceWith(node);
     Store.delete(ph);
     setSticky(node, true);      // expanded turns become sticky
-    suspend(2000);              // gentle cooldown to avoid thrash
+    suspend(2000);              // cooldown so autoslim doesn't insta-collapse
     if (st.selectionMode) ensureSelectionOverlay(node);
     updateStats();
   }
@@ -188,7 +196,6 @@
     updateStats();
   }
 
-  // ⬇️ MAIN CHANGE: allow Soft Hide to ignore sticky
   function slimNow(opts = {}){
     const { force = false, ignoreSticky = false } = (typeof opts === 'boolean' ? { force: opts } : opts);
     if (running) return;
@@ -213,12 +220,12 @@
     });
   }
 
-  // Robust “Soft Hide Now”: wait for turns on first run, then slim ignoring sticky.
+  // Robust soft hide that also works after interaction
   function softHideNow(){
     let tries = 0;
     (function tick(){
       const turns = getTurns();
-      if (turns.length || tries > 25) { // ~3s worst case
+      if (turns.length || tries > 25) {
         slimNow({ force:true, ignoreSticky:true });
       } else {
         tries++; setTimeout(tick, 120);
@@ -238,7 +245,7 @@
       if (changed) {
         clearTimeout(reobserveIfNeeded._t);
         reobserveIfNeeded._t = setTimeout(() => {
-          slimNow();                // auto mode respects sticky
+          slimNow();                // auto respects sticky
           ensureSelectionOverlays();
           updateStats();
         }, 150);
@@ -482,7 +489,7 @@
   }
 
   // ------------------------------------------------------------
-  // Reduce motion
+  // Reduce motion / Theme
   // ------------------------------------------------------------
   function applyReduceMotion(on){
     const id = 'tm-reduce-motion-style';
@@ -495,6 +502,23 @@
     } else if (!on && style) style.remove();
   }
 
+  let mqDark;
+  function applyTheme(mode){
+    let theme = mode;
+    if (mode === 'auto') {
+      const dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      theme = dark ? 'dark' : 'light';
+    }
+    document.body.classList.toggle('tm-theme-dark', theme === 'dark');
+    document.body.classList.toggle('tm-theme-light', theme === 'light');
+
+    if (!mqDark && window.matchMedia) mqDark = window.matchMedia('(prefers-color-scheme: dark)');
+    if (mqDark) {
+      mqDark.onchange = null;
+      if (mode === 'auto') mqDark.onchange = () => applyTheme('auto');
+    }
+  }
+
   // ------------------------------------------------------------
   // UI (draggable + minimize) + styles
   // ------------------------------------------------------------
@@ -503,6 +527,7 @@
     const css = document.createElement('style');
     css.id = 'tm-style';
     css.textContent = `
+      /* Base (dark) */
       .tm-panel{position:fixed;z-index:2147483647;background:rgba(28,28,28,.95);color:#fff;border-radius:14px;backdrop-filter:blur(4px);box-shadow:0 6px 24px rgba(0,0,0,.2);width:max-content;max-width:360px}
       .tm-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;cursor:move}
       .tm-title{font-weight:700}
@@ -510,7 +535,7 @@
       .tm-body{padding:6px 10px}
       .tm-row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
       .tm-panel label{display:flex;align-items:center;gap:6px}
-      .tm-panel input[type=number]{width:72px;padding:4px 6px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:#fff;color:#111}
+      .tm-panel input[type=number], .tm-panel select{width:auto;min-width:72px;padding:4px 6px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:#fff;color:#111}
       .tm-btn{font-size:12px;padding:6px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.1);color:#fff;cursor:pointer}
       .tm-btn.danger{background:rgba(200,40,40,.9)}
       .tm-select{user-select:none}
@@ -536,12 +561,24 @@
       .tm-ph.tint.role-user{background:linear-gradient(0deg, rgba(59,130,246,.12), rgba(245,245,250,.6))}
       .tm-ph.tint.role-assistant{background:linear-gradient(0deg, rgba(16,185,129,.12), rgba(245,245,250,.6))}
 
-      /* Badges — increased contrast */
+      /* Badges — high contrast */
       .tm-badges{display:flex;gap:6px;margin-left:auto;align-items:center}
       .tm-badge{font-size:11px;padding:2px 8px;border-radius:999px;font-weight:600;border:1px solid transparent}
       .tm-badge.role-user{background:#3b82f6;color:#fff;border-color:#2f6fcc}
       .tm-badge.role-assistant{background:#10b981;color:#fff;border-color:#0e8f6c}
       .tm-badge.code{background:#f59e0b;color:#111;border-color:#b45309}
+
+      /* Selection overlay base (dark) */
+      .tm-select{background:rgba(28,28,28,.85);color:#fff;border:1px solid rgba(255,255,255,.2);}
+
+      /* LIGHT THEME overrides (scoped to our components) */
+      body.tm-theme-light .tm-panel{background:rgba(255,255,255,.98);color:#111;box-shadow:0 6px 24px rgba(0,0,0,.15);border:1px solid rgba(0,0,0,.06)}
+      body.tm-theme-light .tm-head .tm-iconbtn{background:rgba(0,0,0,.05);color:#111;border:1px solid rgba(0,0,0,.15)}
+      body.tm-theme-light .tm-btn{background:rgba(0,0,0,.06);color:#111;border:1px solid rgba(0,0,0,.15)}
+      body.tm-theme-light .tm-btn.danger{background:#ef4444;color:#fff;border-color:#b91c1c}
+      body.tm-theme-light .tm-panel input[type=number], body.tm-theme-light .tm-panel select{background:#fff;color:#111;border:1px solid rgba(0,0,0,.2)}
+      body.tm-theme-light .tm-footer{color:#374151;border-top:1px solid rgba(0,0,0,.08)}
+      body.tm-theme-light .tm-select{background:rgba(255,255,255,.92);color:#111;border:1px solid rgba(0,0,0,.15)}
     `;
     document.head.appendChild(css);
   }
@@ -569,6 +606,13 @@
           <label><input id="tm-collapse" type="checkbox" ${st.collapseLongCode ? 'checked' : ''}>Collapse long code</label>
           <label><input id="tm-motion" type="checkbox" ${st.reduceMotion ? 'checked' : ''}>Reduce motion</label>
           <label><input id="tm-colorph" type="checkbox" ${st.colorizePlaceholders ? 'checked' : ''}>Colorize placeholders</label>
+          <label style="margin-left:6px">Theme
+            <select id="tm-theme">
+              <option value="auto"${st.theme==='auto'?' selected':''}>Auto</option>
+              <option value="light"${st.theme==='light'?' selected':''}>Light</option>
+              <option value="dark"${st.theme==='dark'?' selected':''}>Dark</option>
+            </select>
+          </label>
         </div>
 
         <div class="tm-row">
@@ -610,15 +654,34 @@
     $('#tm-motion').addEventListener('change', e => { st.reduceMotion = !!e.target.checked; save(); applyReduceMotion(st.reduceMotion); });
     $('#tm-colorph').addEventListener('change', e => { st.colorizePlaceholders = !!e.target.checked; save(); refreshPlaceholderStyles(); });
 
-    $('#tm-hide').addEventListener('click', ()=> softHideNow());                     // ⬅️ ignore sticky
+    $('#tm-theme').addEventListener('change', e => { st.theme = e.target.value; save(); applyTheme(st.theme); });
+
+    $('#tm-hide').addEventListener('click', ()=> softHideNow());
     $('#tm-expand').addEventListener('click', ()=> { expandAll(); updateStats(); });
+
+    // NEW Hard Purge: remove oldest nodes (real + placeholders) to keep only the last N
     $('#tm-purge').addEventListener('click', ()=> {
-      const turns = getTurns();
-      const keep = Math.max(1, parseInt(st.keepLastN,10)||1);
-      const older = turns.slice(0, Math.max(0, turns.length - keep));
-      if (!older.length) return;
-      if (!confirm(`Hard purge will remove ${older.length} older nodes from the DOM until reload. Continue?`)) return;
-      older.forEach(n => n.remove());
+      const all = getAllTurnNodes();
+      const keep = Math.max(1, parseInt(st.keepLastN, 10) || 1);
+      const cutoff = Math.max(0, all.length - keep);
+      const toRemove = all.slice(0, cutoff);
+
+      if (!toRemove.length) return alert('Nothing to purge (already <= keepLastN).');
+
+      if (!confirm(
+        `Hard purge will remove ${toRemove.length} older nodes from the DOM (placeholders and real turns), ` +
+        `keeping only the last ${keep}. They will return on reload. Continue?`
+      )) return;
+
+      toRemove.forEach(n => {
+        if (n.classList?.contains('tm-ph')) { try { Store.delete(n); } catch {} }
+        n.remove();
+      });
+
+      // Optional: re-collapse according to current Auto preference
+      if (st.autoSlim) slimNow({ force:true, ignoreSticky:true });
+
+      reobserveIfNeeded();
       updateStats();
     });
 
@@ -651,7 +714,7 @@
       st.keepLastN = 2; save();
       $('#tm-keep').value = 2;
       expandAll();
-      slimNow({ force:true, ignoreSticky:true });      // ⬅️ also ignore sticky
+      slimNow({ force:true, ignoreSticky:true });
     });
 
     // Minimize / restore
@@ -739,55 +802,12 @@
   // ------------------------------------------------------------
   // Init
   // ------------------------------------------------------------
-  function ensureStyles(){
-    if ($('#tm-style')) return;
-    const css = document.createElement('style');
-    css.id = 'tm-style';
-    css.textContent = `
-      .tm-panel{position:fixed;z-index:2147483647;background:rgba(28,28,28,.95);color:#fff;border-radius:14px;backdrop-filter:blur(4px);box-shadow:0 6px 24px rgba(0,0,0,.2);width:max-content;max-width:360px}
-      .tm-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;cursor:move}
-      .tm-title{font-weight:700}
-      .tm-head .tm-iconbtn{border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.1);color:#fff;border-radius:8px;padding:2px 6px;cursor:pointer}
-      .tm-body{padding:6px 10px}
-      .tm-row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
-      .tm-panel label{display:flex;align-items:center;gap:6px}
-      .tm-panel input[type=number]{width:72px;padding:4px 6px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:#fff;color:#111}
-      .tm-btn{font-size:12px;padding:6px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.1);color:#fff;cursor:pointer}
-      .tm-btn.danger{background:rgba(200,40,40,.9)}
-      .tm-select{user-select:none}
-      .tm-selected{outline:2px solid #60a5fa;outline-offset:2px;border-radius:12px}
-      .tm-min .tm-body{display:none}
-      .tm-min{width:auto}
-      .tm-footer{padding:8px 10px;border-top:1px solid rgba(255,255,255,.12);display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#e5e7eb}
-
-      .tm-ph{position:relative;margin:8px 0;border:1px dashed #777;border-radius:10px;padding:10px;background:rgba(245,245,250,.6);overflow:hidden}
-      .tm-ph-inner{display:flex;align-items:center;gap:10px;min-height:40px;font-size:12px;color:#1f2937}
-      .tm-ph .tm-ph-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
-      .tm-ph .tm-ph-sel{margin-left:10px;display:flex;gap:6px;align-items:center;cursor:pointer}
-      .tm-code-wrap .tm-code-bar button{color:#111}
-
-      .tm-ph::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:10px 0 0 10px;background:var(--tm-ph-stripe,#777)}
-      .tm-ph.role-user{--tm-ph-stripe:#3b82f6}
-      .tm-ph.role-assistant{--tm-ph-stripe:#10b981}
-      .tm-ph.codeheavy{box-shadow: inset 0 0 0 1px rgba(245,158,11,.35)}
-
-      .tm-ph.tint.role-user{background:linear-gradient(0deg, rgba(59,130,246,.12), rgba(245,245,250,.6))}
-      .tm-ph.tint.role-assistant{background:linear-gradient(0deg, rgba(16,185,129,.12), rgba(245,245,250,.6))}
-
-      .tm-badges{display:flex;gap:6px;margin-left:auto;align-items:center}
-      .tm-badge{font-size:11px;padding:2px 8px;border-radius:999px;font-weight:600;border:1px solid transparent}
-      .tm-badge.role-user{background:#3b82f6;color:#fff;border-color:#2f6fcc}
-      .tm-badge.role-assistant{background:#10b981;color:#fff;border-color:#0e8f6c}
-      .tm-badge.code{background:#f59e0b;color:#111;border-color:#b45309}
-    `;
-    document.head.appendChild(css);
-  }
-
   function init(){
     ensureStyles();
     afterHydration(() => {
       buildUI();
       applyReduceMotion(st.reduceMotion);
+      applyTheme(st.theme);
       collapseLongCode(document);
       reobserveIfNeeded();
       if (st.autoSlim) slimNow(); // auto respects sticky
