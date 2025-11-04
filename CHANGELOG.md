@@ -3,6 +3,43 @@
 All notable changes to **ChatGPT Optimizer + Archiver** will be documented here.  
 Versioning: SemVer (feature ⇒ minor, fix ⇒ patch, breaking ⇒ major).
 
+## [0.6.2] - 2025-11-03
+### Fixed
+- **Soft Hide Now** now ignores “sticky” turns (ones you expanded manually). Works on first run and after you’ve expanded items.
+- Selection overlays and placeholder checkboxes stay in sync after expand/collapse.
+### Changed
+- Stats footer clarifies code density: **Code Blocks: N (in M turns)**.
+
+## [0.6.1] - 2025-11-03
+### Fixed
+- More robust init on first page load and after React re-mounts; panel reliably reappears.
+- Minor race conditions around selection overlay bootstrapping.
+
+## [0.6.0] - 2025-11-03
+### Added
+- **Colored, info-rich placeholders** for collapsed turns:
+  - Role stripe (blue = user, green = assistant) with optional background tint.
+  - Badges for **User/Assistant** and **code block count**.
+  - Toggle: **Colorize placeholders**.
+- **Stats footer** on the panel:
+  - Total Turns, Collapsed Turns, Visible Turns, Code Blocks (in X turns).
+- **Panel title** shows “ChatGPT Optimizer + Archiver vX.Y.Z”.
+### Changed
+- Higher-contrast badge styles for readability.
+- Hydration-safe UI mount + keep-alive: if the site re-renders, the panel is restored.
+### Fixed
+- Selection overlay layering/position so it doesn’t block UI.
+
+## [0.5.3] - 2025-11-03
+### Changed
+- Tampermonkey headers now point to GitHub **releases/latest** for auto-updates:
+  - `@downloadURL  https://github.com/MattsBasementArcade/TM-ChatGPToptimizer/releases/latest/download/ChatGPTOptimizer.js`
+  - `@updateURL    https://github.com/MattsBasementArcade/TM-ChatGPToptimizer/releases/latest/ChatGPTOptimizer.js`
+- Panel title updated to **ChatGPT Optimizer + Archiver**.
+### Fixed
+- Markdown export edge cases that produced near-empty files.
+
+
 ## [0.5.2] – Sticky + placeholder selection + overlay reapply
 - Fix: Expanded turns become **sticky** and don’t re-collapse immediately.
 - New: **Select** checkbox on collapsed placeholders (export without expanding).
