@@ -3,6 +3,17 @@
 All notable changes to **ChatGPT Optimizer + Archiver** will be documented here.  
 Versioning: SemVer (feature ⇒ minor, fix ⇒ patch, breaking ⇒ major).
 
+## [0.5.2] – Sticky + placeholder selection + overlay reapply
+- Fix: Expanded turns become **sticky** and don’t re-collapse immediately.
+- New: **Select** checkbox on collapsed placeholders (export without expanding).
+- Fix: **Selection overlays** re-attach after DOM changes/route switches.
+- Fix: Hydration-safe init + keep-alive so the panel persists across route changes.
+- Fix: Selection overlays re-attach after DOM mutations.
+- Fix: Markdown export now captures user turns (non-.markdown containers) and strips UI noise.
+- New: “Sticky” expanded turns don’t immediately re-collapse.
+- New: Selection checkboxes on collapsed placeholders (export without expanding).
+
+
 ## [0.5.1] – Draggable/minimizable panel
 - New: Control panel is **draggable**; position persists across reloads.
 - New: **Minimize/restore** button + header **double-click** to toggle.
