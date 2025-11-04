@@ -12,8 +12,8 @@
 // @license      MIT
 // @homepageURL  https://github.com/MattsBasementArcade/TM-ChatGPToptimizer
 // @supportURL   https://github.com/MattsBasementArcade/TM-ChatGPToptimizer/issues
-// @downloadURL  https://raw.githubusercontent.com/MattsBasementArcade/TM-ChatGPToptimizer/releases/latest/download/ChatGPTOptimizer.js
-// @updateURL    https://raw.githubusercontent.com/MattsBasementArcade/TM-ChatGPToptimizer/releases/latest/ChatGPTOptimizer.js
+// @downloadURL  https://github.com/MattsBasementArcade/TM-ChatGPToptimizer/releases/latest/download/ChatGPTOptimizer.js
+// @updateURL    https://github.com/MattsBasementArcade/TM-ChatGPToptimizer/releases/latest/ChatGPTOptimizer.js
 // ==/UserScript==
 
 (function () {
