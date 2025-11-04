@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT Optimizer + Archiver (keep last N, select+export, draggable panel)
-// @namespace    https://greg.dev/userscripts
-// @version      0.5.2
+// @namespace    https://github.com/MattsBasementArcade/TM-ChatGPToptimizer
+// @version      0.5.3
 // @description  Keep chats snappy for long code, plus select and export chat turns or code blocks. Draggable/minimizable control panel.
 // @author       Matt's Basement Arcade
 // @match        https://chat.openai.com/*
@@ -10,6 +10,10 @@
 // @noframes
 // @grant        none
 // @license      MIT
+// @homepageURL  https://github.com/MattsBasementArcade/TM-ChatGPToptimizer
+// @supportURL   https://github.com/MattsBasementArcade/TM-ChatGPToptimizer/issues
+// @downloadURL  https://raw.githubusercontent.com/MattsBasementArcade/TM-ChatGPToptimizer/main/ChatGPTOptimizer.user.js
+// @updateURL    https://raw.githubusercontent.com/MattsBasementArcade/TM-ChatGPToptimizer/main/ChatGPTOptimizer.user.js
 // ==/UserScript==
 
 (function () {
